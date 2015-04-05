@@ -70,10 +70,7 @@ int monojob_wait ( const char *string, unsigned long timeout ) {
 	unsigned long now;
 	unsigned long elapsed;
 	unsigned long completed = 0;
-	unsigned long scaled_completed;
-	unsigned long scaled_total;
-	unsigned int percentage;
-	int shown_percentage = 0;
+	int shown_characters = 0;
 	int ongoing_rc;
 	int key;
 	int rc;
@@ -120,29 +117,36 @@ int monojob_wait ( const char *string, unsigned long timeout ) {
 
 		/* Display progress, if applicable */
 		elapsed = ( now - last_display );
-		if ( string && ( elapsed >= TICKS_PER_SEC ) ) {
-			if ( shown_percentage )
-				printf ( "\b\b\b\b    \b\b\b\b" );
-			/* Normalise progress figures to avoid overflow */
-			scaled_completed = ( progress.completed / 128 );
-			scaled_total = ( progress.total / 128 );
-			if ( scaled_total ) {
-				percentage = ( ( 100 * scaled_completed ) /
-					       scaled_total );
-				printf ( "%3d%%", percentage );
-				shown_percentage = 1;
-			} else {
-				printf ( "." );
-				shown_percentage = 0;
-			}
+		if ( string && ( elapsed >= TICKS_PER_SEC ) && progress.completed ) {
+			int i, old_shown_characters = shown_characters;
+
+			for ( i = 0; i < shown_characters; i++ )
+				printf("\b");
+
+			shown_characters = printf ( "%ld", progress.completed );
 			last_display = now;
+
+			for ( i = shown_characters; i < old_shown_characters; i++ )
+				printf(" ");
+
+			shown_characters = i;
 		}
 	}
 	rc = monojob_rc;
 	monojob_close ( &monojob, rc );
 
-	if ( shown_percentage )
-		printf ( "\b\b\b\b    \b\b\b\b" );
+	if ( shown_characters ) {
+		int i;
+
+		for ( i = 0; i < shown_characters; i++ )
+			printf( "\b" );
+
+		for ( i = 0; i < shown_characters; i++ )
+			printf( " " );
+
+		for ( i = 0; i < shown_characters; i++ )
+			printf( "\b" );
+	}
 
 	if ( string ) {
 		if ( rc ) {
